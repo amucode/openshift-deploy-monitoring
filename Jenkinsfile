@@ -119,7 +119,6 @@ ansiColor('xterm') {
                    sh "oc delete service kube-state-metrics"
                    sh "oc delete dc kube-state-metrics"
                    sh "oc  delete is kube-state-metrics"
-                   sh "oc delete route kube-state-metrics"
                }
                echo "Deploying Kube-State-Metrics"
                sh "oc new-app --name kube-state-metrics quay.io/coreos/kube-state-metrics:v1.2.0"
