@@ -1,0 +1,10 @@
+openShiftPrometheusTemplate = prometheus-template.yaml
+APPLICATION_NAME = prometheus
+NAMESPACE = prometheus
+PROMETHEUS_IMAGE= prom/prometheus
+GRAFANA_APPLICATION_NAME = grafana
+GRAFANA_IMAGE = grafana/grafana
+ALERTMANAGER_APPLICATION_NAME = alertmanager
+ALERTMANAGER_IMAGE = prom/alertmanager
+KUBE_METRIC_APPLICATION_NAME = kube-state-metrics
+KUBE_STATE_METRIC_IMAGE = quay.io/coreos/kube-state-metrics:v1.2.0
