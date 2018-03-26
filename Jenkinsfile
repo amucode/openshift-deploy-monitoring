@@ -88,7 +88,6 @@ ansiColor('xterm') {
                    echo "Removing the Database"
                    sh "oc delete service db"
                    sh "oc delete dc db"
-                   sh "oc delete is db"
                }
                echo "Deploying the Database"
                sh "oc new-app --name db -e MYSQL_ROOT_PASSWORD=${DB_PASSWORD} mariadb"
