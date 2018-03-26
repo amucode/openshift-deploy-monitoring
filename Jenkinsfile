@@ -145,6 +145,7 @@ ansiColor('xterm') {
                     "-p", "ALERTMANAGER_PASSWORD=\"${ALERTMANAGER_PASSWORD}\""
                     ].join(" ")
                 sh "oc process -f templates/alertmanager-template.yml ${alertmanagertemplateParameters} | oc apply -f - -n \"${config.NAMESPACE}\""
+                sh "oc expose svc/alertmanager"
             }
         }
     }
