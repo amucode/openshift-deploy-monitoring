@@ -44,7 +44,7 @@ ansiColor('xterm') {
         {
             if(params.deployPrometheus)
             {
-                if(params.redeploy)
+                if(params.reDeploy)
                 {
                     echo "Removing prometheus"
                     sh "oc delete configmap prometheus-config"
@@ -67,7 +67,7 @@ ansiColor('xterm') {
         {
             if(params.deployNodeExporter)
             {
-                if(params.redeploy)
+                if(params.reDeploy)
                 {
                     echo "Removing Node-Exporter"
                     sh "oc delete service node1"
@@ -83,7 +83,7 @@ ansiColor('xterm') {
         {
            if(params.deployDB)
            {
-               if(params.redeploy)
+               if(params.reDeploy)
                {
                    echo "Removing the Database"
                    sh "oc delete service db"
@@ -99,7 +99,7 @@ ansiColor('xterm') {
         {
             if(params.deployDBExporter)
             {
-               if(params.redeploy)
+               if(params.reDeploy)
                {
                    echo "Removing the DB-Exporter"
                    sh "oc delete service db-exporter"
@@ -115,7 +115,7 @@ ansiColor('xterm') {
         {
             if(params.deployKubeStateMetrics)
             {
-               if(params.redeploy)
+               if(params.reDeploy)
                {
                    sh "oc delete service kube-state-metrics"
                    sh "oc delete dc kube-state-metrics"
@@ -131,7 +131,7 @@ ansiColor('xterm') {
         {
             if(params.deployAlertmanager)
             {
-                if(params.redeploy)
+                if(params.reDeploy)
                 {
                     echo "Removing Alertmanager"
                     sh "oc delete service alertmanager"
