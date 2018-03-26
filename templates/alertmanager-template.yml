@@ -1,0 +1,266 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: alertmanager
+parameters:
+- name: NAMESPACE
+  required: true
+- name: ALERTMANAGER_APPLICATION_NAME
+  required: true
+- name: ALERTMANAGER_IMAGE
+  required: true
+- name: ALERTMANAGER_PASSWORD
+  required: true
+
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    app: ${ALERTMANAGER_APPLICATION_NAME}
+    name: alertmanager
+  spec:
+    triggers:
+      - type: "ConfigChange"
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        timeoutSeconds: 300
+        updatePeriodSeconds: 1
+      type: Rolling 
+    replicas: 1
+    selector:
+        app: ${ALERTMANAGER_APPLICATION_NAME}
+    template:
+      metadata:
+        labels:
+          app: ${ALERTMANAGER_APPLICATION_NAME}
+        name: ${ALERTMANAGER_APPLICATION_NAME}
+      spec:
+        volumes:
+          - name: alertmanager
+            configMap:
+              name: alertmanager
+              defaultMode: 420
+          - name: alertmanager-data
+            persistentVolumeClaim:
+              claimName: alertmanager-data
+        containers:
+          - name: alertmanager
+            image: ${ALERTMANAGER_IMAGE}
+            args:
+              - '--config.file=/etc/alertmanager/alertmanager.yml'
+            ports:
+              - containerPort: 9093
+                protocol: TCP
+            volumeMounts:
+              - name: alertmanager
+                mountPath: /etc/alertmanager
+              - name: alertmanager-data
+                mountPath: /alertmanager
+            terminationMessagePath: /dev/termination-log
+            imagePullPolicy: IfNotPresent
+        restartPolicy: Always
+        terminationGracePeriodSeconds: 30
+        dnsPolicy: ClusterFirst
+        serviceAccountName: prometheus
+        serviceAccount: prometheus
+
+# - apiVersion: v1
+#   kind: Service
+#   metadata:
+#     annotations:
+#     #  prometheus.io/scrape: "true"
+#   #    prometheus.io/scheme: https
+#     #  prometheus.io/scheme: http
+#     #  service.alpha.openshift.io/serving-cert-secret-name: alertmanager-tls
+#     labels:
+#       name: ${ALERTMANAGER_APPLICATION_NAME}
+#     name: ${ALERTMANAGER_APPLICATION_NAME}
+#     namespace: "${NAMESPACE}"
+#   spec:
+#     ports:
+#     - name: alertmanager
+#       port: 9093
+#       protocol: TCP
+#       targetPort: 9093
+#     selector:
+#       deploymentConfig: alertmanager
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+  #     prometheus.io/scrape: "true"
+  # #TODO this is for TLS    prometheus.io/scheme: https
+  #     prometheus.io/scheme: http
+  #    service.alpha.openshift.io/serving-cert-secret-name: prometheus-tls
+    labels:
+      name: "${ALERTMANAGER_APPLICATION_NAME}"
+    name: "${ALERTMANAGER_APPLICATION_NAME}"
+    namespace: "${NAMESPACE}"
+  spec:
+    ports:
+    - name: "${ALERTMANAGER_APPLICATION_NAME}"
+  #TODO this is for TLS    port: 443
+      port: 9093
+      protocol: TCP
+  #TODO this is for TLS    targetPort: 8443
+      targetPort: 9093
+    selector:
+      app: "${ALERTMANAGER_APPLICATION_NAME}"
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: alertmanager
+    namespace: ${NAMESPACE}
+  data:
+    alertmanager.yml: |
+      global:
+
+      templates:
+      - '/etc/alertmanager/*.tmpl'
+      # The root route on which each incoming alert enters.
+      route:
+        # default route if none match
+        receiver: alert-emailer
+
+        # The labels by which incoming alerts are grouped together. For example,
+        # multiple alerts coming in for cluster=A and alertname=LatencyHigh would
+        # be batched into a single group.
+        # TODO:
+        group_by: ['alertname', 'priority']
+
+        # All the above attributes are inherited by all child routes and can
+        # overwritten on each.
+
+      receivers:
+      - name: alert-emailer
+        email_configs:
+        - to: abhishek.dubey@opstree.com
+          send_resolved: false
+          from: prometheustesting@gmail.com
+          smarthost: 'smtp.gmail.com:587'
+          auth_username: prometheustesting@gmail.com
+          auth_password: ${ALERTMANAGER_PASSWORD}
+          auth_secret: prometheustesting@gmail.com
+          auth_identity: prometheustesting@gmail.com
+    
+    email.tmpl: |
+      {{ define "__alertmanager" }}AlertManager{{ end }}
+      {{ define "__alertmanagerURL" }}{{ .ExternalURL }}/#/alerts?receiver={{ .Receiver }}{{ end }}
+
+      {{ define "__subject" }}[OSC] - ({{range .GroupLabels.SortedPairs }} {{if eq .Name "severity"}} {{.Value}} {{end}} {{ end }}) - {{range .CommonLabels.SortedPairs }} {{if eq .Name "service"}} {{.Value}} {{end}} {{ end }} - {{range .GroupLabels.SortedPairs }} {{if eq .Name "alertname"}} {{.Value}} {{end}} {{ end }} {{ end }}
+      {{ define "__description" }}{{ end }}
+
+      {{ define "__text_alert_list" }}{{ range . }}Labels:
+      {{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
+      {{ end }}Annotations:
+      {{ range .Annotations.SortedPairs }} - {{ .Name }} = {{ .Value }}
+      {{ end }}Source: {{ .GeneratorURL }}
+      {{ end }}{{ end }}
+      <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+      <!--
+      Style and HTML derived from https://github.com/mailgun/transactional-email-templates
+
+
+      -->
+      <html xmlns="http://www.w3.org/1999/xhtml" xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+      <head style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+      <meta name="viewport" content="width=device-width" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+      <title style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">{{ template "__subject" . }}</title>
+
+      </head>
+
+      <body itemscope="" itemtype="http://schema.org/EmailMessage" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; height: 100%; line-height: 1.6em; width: 100% !important; background-color: #f6f6f6; margin: 0; padding: 0;" bgcolor="#f6f6f6">
+
+      <table style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; width: 100%; background-color: #f6f6f6; margin: 0;" bgcolor="#f6f6f6">
+        <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+          <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;" valign="top"></td>
+          <td width="600" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; display: block !important; max-width: 600px !important; clear: both !important; width: 100% !important; margin: 0 auto; padding: 0;" valign="top">
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; max-width: 600px; display: block; margin: 0 auto; padding: 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; border-radius: 3px; background-color: #fff; margin: 0; border: 1px solid #e9e9e9;" bgcolor="#fff">
+                <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                  <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 16px; vertical-align: top; color: #fff; font-weight: 500; text-align: center; border-radius: 3px 3px 0 0; background-color: #E6522C; margin: 0; padding: 20px;" align="center" bgcolor="#E6522C" valign="top">
+                    {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}s{{ end }} for {{ range .GroupLabels.SortedPairs }}
+              {{ .Name }}={{ .Value }}
+                    {{ end }}
+                  </td>
+                </tr>
+                <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                  <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 10px;" valign="top">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                      <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                        <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+                          <a href="{{ template "__alertmanagerURL" . }}" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; color: #FFF; text-decoration: none; line-height: 2em; font-weight: bold; text-align: center; cursor: pointer; display: inline-block; border-radius: 5px; text-transform: capitalize; background-color: #348eda; margin: 0; border-color: #348eda; border-style: solid; border-width: 10px 20px;">View in {{ template "__alertmanager" . }}</a>
+                        </td>
+                      </tr>
+                      {{ if gt (len .Alerts.Firing) 0 }}
+                      <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                        <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+                          <strong style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">[{{ .Alerts.Firing | len }}] Firing</strong>
+                        </td>
+                      </tr>
+                      {{ end }}
+                      {{ range .Alerts.Firing }}
+                      <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                        <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+                          <strong style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">Labels</strong><br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+                          {{ range .Labels.SortedPairs }}{{ .Name }} = {{ .Value }}<br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />{{ end }}
+                          {{ if gt (len .Annotations) 0 }}<strong style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">Annotations</strong><br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />{{ end }}
+                          {{ range .Annotations.SortedPairs }}{{ .Name }} = {{ .Value }}<br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />{{ end }}
+                          <a href="{{ .GeneratorURL }}" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; color: #348eda; text-decoration: underline; margin: 0;">Source</a><br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+                        </td>
+                      </tr>
+                      {{ end }}
+
+                      {{ if gt (len .Alerts.Resolved) 0 }}
+                        {{ if gt (len .Alerts.Firing) 0 }}
+                      <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                        <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+                          <br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+                          <hr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+                          <br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+                        </td>
+                      </tr>
+                        {{ end }}
+                      <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                        <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+                          <strong style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">[{{ .Alerts.Resolved | len }}] Resolved</strong>
+                        </td>
+                      </tr>
+                      {{ end }}
+                      {{ range .Alerts.Resolved }}
+                      <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                        <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+                          <strong style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">Labels</strong><br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+                          {{ range .Labels.SortedPairs }}{{ .Name }} = {{ .Value }}<br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />{{ end }}
+                          {{ if gt (len .Annotations) 0 }}<strong style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">Annotations</strong><br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />{{ end }}
+                          {{ range .Annotations.SortedPairs }}{{ .Name }} = {{ .Value }}<br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />{{ end }}
+                          <a href="{{ .GeneratorURL }}" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; color: #348eda; text-decoration: underline; margin: 0;">Source</a><br style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" />
+                        </td>
+                      </tr>
+                      {{ end }}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; width: 100%; clear: both; color: #999; margin: 0; padding: 20px;">
+                <table width="100%" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                  <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                    <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 12px; vertical-align: top; text-align: center; color: #999; margin: 0; padding: 0 0 20px;" align="center" valign="top"><a href="{{ .ExternalURL }}" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 12px; color: #999; text-decoration: underline; margin: 0;">Sent by {{ template "__alertmanager" . }}</a></td>
+                  </tr>
+                </table>
+              </div></div>
+          </td>
+          <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;" valign="top"></td>
+        </tr>
+      </table>
+
+      </body>
+      </html>
+
