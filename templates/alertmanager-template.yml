@@ -51,6 +51,7 @@ objects:
             image: ${ALERTMANAGER_IMAGE}
             args:
               - '--config.file=/etc/alertmanager/alertmanager.yml'
+              - '--web.external-url=http://alertmanager-prometheus.192.168.99.100.nip.io'
             ports:
               - containerPort: 9093
                 protocol: TCP

@@ -70,6 +70,7 @@ objects:
             args:
               - '--storage.tsdb.retention=720h'
               - '--config.file=/etc/prometheus/prometheus.yml'
+              - '--web.external-url=http://prometheus-prometheus.192.168.99.100.nip.io'
             ports:
               - name: prometheus-port
                 containerPort: 9090
